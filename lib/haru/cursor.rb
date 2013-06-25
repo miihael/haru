@@ -19,14 +19,19 @@ module Haru
       check_return_code(PureHailDB.ib_cursor_lock(@cursor_ptr.read_pointer(), PureHailDB::LockMode[lock_type]))
     end
 
-    def insert_row(row)
+    def insert_row(row, ignore_duplicates=false)
       tuple_ptr = PureHailDB.ib_clust_read_tuple_create(@cursor_ptr.read_pointer())
       row.each_pair do |k,v|
         col = @table.column(k)
+        raise "Column not found: #{k} in #{@table.name}" unless col
         col.insert_data(tuple_ptr, v)
       end
-      check_return_code(PureHailDB.ib_cursor_insert_row(@cursor_ptr.read_pointer, tuple_ptr))
+      ret = PureHailDB.ib_cursor_insert_row(@cursor_ptr.read_pointer, tuple_ptr)
+      if ignore_duplicates and PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_DUPLICATE_KEY]
+        ret = :DB_SUCCESS
+      end
       PureHailDB.ib_tuple_delete(tuple_ptr)
+      return ret
     end
 
     def read_row()
@@ -47,7 +52,7 @@ module Haru
     end
 
     def next_row()
-      check_return_code(PureHailDB.ib_cursor_next(@cursor_ptr.read_pointer()))
+      check_return_code( PureHailDB.ib_cursor_next(@cursor_ptr.read_pointer()) )
     end
 
     def first_row()

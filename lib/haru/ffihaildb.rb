@@ -4,7 +4,7 @@ require 'ffi'
 module PureHailDB
 
   extend FFI::Library
-  ffi_lib 'haildb'
+  ffi_lib ['haildb', 'libhaildb.so.6.0.0']
 
   # error codes
   DbError = enum( :DB_SUCCESS, 10,
@@ -122,7 +122,9 @@ module PureHailDB
   attach_function :ib_trx_begin, [ TrxLevel ], :pointer
   attach_function :ib_trx_commit, [ :pointer ], DbError
   attach_function :ib_trx_rollback, [ :pointer ], DbError
+  attach_function :ib_trx_release, [ :pointer ], DbError
   attach_function :ib_schema_lock_exclusive, [ :pointer ], DbError
+  attach_function :ib_schema_unlock, [ :pointer ], DbError
   attach_function :ib_trx_state, [ :pointer ], TrxState
 
   # table/index functions
@@ -132,8 +134,10 @@ module PureHailDB
   attach_function :ib_table_schema_add_index, [ :pointer, :string, :pointer ], DbError
   attach_function :ib_index_schema_add_col, [ :pointer, :string, :uint64 ], DbError
   attach_function :ib_index_schema_set_clustered, [ :pointer ], DbError
+  attach_function :ib_index_create, [ :pointer, :pointer ], DbError
   attach_function :ib_table_create, [ :pointer, :pointer, :pointer ], DbError
   attach_function :ib_table_drop, [ :pointer, :string ], DbError
+  attach_function :ib_table_get_id, [ :string, :pointer ], DbError
 
   # cursor functions
   attach_function :ib_cursor_open_table, [ :string, :pointer, :pointer ], DbError
@@ -154,8 +158,12 @@ module PureHailDB
   attach_function :ib_col_set_value, [ :pointer, :uint64, :pointer , :uint64 ], DbError
   attach_function :ib_col_get_value, [ :pointer, :uint64 ], :pointer
   attach_function :ib_col_copy_value, [ :pointer, :uint64, :pointer, :uint64 ], :void
+  attach_function :ib_tuple_write_u16, [ :pointer, :uint64, :uint32 ], DbError
+  attach_function :ib_tuple_read_u16, [ :pointer, :uint64, :pointer ], DbError
   attach_function :ib_tuple_write_u32, [ :pointer, :uint64, :uint32 ], DbError
   attach_function :ib_tuple_read_u32, [ :pointer, :uint64, :pointer ], DbError
+  attach_function :ib_tuple_write_u64, [ :pointer, :uint64, :uint64 ], DbError
+  attach_function :ib_tuple_read_u64, [ :pointer, :uint64, :pointer ], DbError
   attach_function :ib_tuple_write_float, [ :pointer, :uint64, :float ], DbError
   attach_function :ib_tuple_read_float, [ :pointer, :uint64, :pointer ], DbError
   attach_function :ib_tuple_write_double, [ :pointer, :uint64, :double ], DbError

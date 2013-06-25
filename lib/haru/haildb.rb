@@ -13,6 +13,7 @@ module Haru
     #
     def initialize()
       PureHailDB.ib_init
+      @tables = {}
     end
 
     #
@@ -180,8 +181,7 @@ module Haru
   end
 
   def check_return_code(ret)
-    if PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_SUCCESS]
-    elsif PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_ERROR]
+    if PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_ERROR]
       raise DatabaseError, PureHailDB.ib_strerror(ret)
     elsif PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_OUT_OF_MEMORY]
       raise OutOfMemory, PureHailDB.ib_strerror(ret)
@@ -214,7 +214,17 @@ module Haru
     elsif PureHailDB::DbError[ret] == PureHailDB::DbError[:DB_CORRUPTION]
       raise Corruption, PureHailDB.ib_strerror(ret)
     else
+      return ret
     end
   end
 
+  def tables=(tbls)
+    tbls.each do |tbl|
+      @tables[tbl.name] = tbl
+    end
+  end
+  def table(tbl)
+    raise "Table not found" unless @tables.key?(tbl)
+    return @tables[tbl]
+  end
 end

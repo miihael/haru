@@ -27,7 +27,8 @@ module Haru
     #
     #   * trx_level   the isolation level to use for the transaction
     #
-    def initialize(trx_level = READ_UNCOMMITTED)
+    def initialize(trx_level = READ_COMMITTED)
+      @level = trx_level
       @trx_ptr = PureHailDB.ib_trx_begin(trx_level)
     end
 
@@ -50,16 +51,19 @@ module Haru
     # Commits the transaction and releases the schema latches.
     def commit()
       check_return_code(PureHailDB.ib_trx_commit(@trx_ptr))
+      release()
     end
 
     # Rolls back the transaction and releases the schema latches.
     def rollback()
       check_return_code(PureHailDB.ib_trx_rollback(@trx_ptr))
+      release()
     end
 
     # Latches the HailDB data dictionary in exclusive mode
     def exclusive_schema_lock()
       check_return_code(PureHailDB.ib_schema_lock_exclusive(@trx_ptr))
+      @schema_lock = true
     end
 
     def create_table(table)
@@ -79,6 +83,13 @@ module Haru
       cursor = Cursor.new(crs_ptr, table)
     end
 
+    def release()
+      return unless @trx_ptr
+      PureHailDB.ib_schema_unlock(@trx_ptr) if @schema_lock
+      @schema_lock = false
+      #check_return_code(PureHailDB.ib_trx_release(@trx_ptr))
+      @trx_ptr = nil
+    end
   end
 
 end
