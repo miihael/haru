@@ -19,6 +19,7 @@ module Haru
     def insert_data(tuple_ptr, data)
       case @type
       when INT
+        data = data.to_i if data.is_a?(String)
         if @size==2 then
           check_return_code(PureHailDB.ib_tuple_write_u16(tuple_ptr, @num, data))
         end
@@ -30,10 +31,12 @@ module Haru
         end
 
       when FLOAT
+        data = data.to_f if data.is_a?(String)
         check_return_code(PureHailDB.ib_tuple_write_float(tuple_ptr,
                                                           @num,
                                                           data))
       when DOUBLE
+        data = data.to_f if data.is_a?(String)
         check_return_code(PureHailDB.ib_tuple_write_double(tuple_ptr,
                                                            @num,
                                                            data))
@@ -84,8 +87,10 @@ module Haru
       when BLOB
       when DECIMAL
       when VARCHAR
+        vlen = PureHailDB.ib_col_get_len(tuple_ptr, @num)
+        return nil if not vlen or vlen == 0
         res_ptr = PureHailDB.ib_col_get_value(tuple_ptr, @num)
-        res_ptr.read_string()
+        res_ptr.get_string(0, vlen)
       end
     end
 
@@ -209,6 +214,10 @@ module Haru
       @columns[col_name]
     end
 
+    def truncate()
+      id_ptr = FFI::MemoryPointer.new :pointer
+      check_return_code(PureHailDB.ib_table_truncate(@name, id_ptr))
+    end
   end
 
 end
