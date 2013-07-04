@@ -51,4 +51,8 @@ module Haru
   COMMITTED_IN_MEMORY = 2
   PREPARED = 3
 
+  #index types
+  SECONDARY_INDEX = 0
+  UNIQUE_INDEX = 1
+  CLUSTERED_INDEX = 2
 end

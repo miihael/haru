@@ -61,7 +61,7 @@ module PureHailDB
                    :IB_TRX_READ_COMMITTED,
                    :IB_TRX_REPEATABLE_READ,
                    :IB_TRX_SERIALIZABLE )
-  
+
   TrxState = enum( :IB_TRX_NOT_STARTED, 0,
                    :IB_TRX_ACTIVE,
                    :IB_TRX_COMMITTED_IN_MEMORY,
@@ -78,7 +78,7 @@ module PureHailDB
                    :IB_LOCK_NOT_USED,
                    :IB_LOCK_NONE,
                    :IB_LOCK_NUM, :IB_LOCK_NONE )
-  
+
   TableFormat = enum( :IB_TBL_REDUNDANT, 0,
                       :IB_TBL_COMPACT,
                       :IB_TBL_DYNAMIC,
@@ -104,6 +104,9 @@ module PureHailDB
                      :IB_DECIMAL,
                      :IB_VARCHAR_ANYCHARSET,
                      :IB_CHAR_ANYCHARSET )
+
+  SearchMode = enum( :IB_CLOSEST_MATCH, :IB_EXACT_MATCH, :IB_EXACT_PREFIX )
+  MatchMode = enum( :IB_CUR_G, 1, :IB_CUR_GE, 2, :IB_CUR_L, 3, :IB_CUR_LE, 4)
 
   # startup/shutdown functions
   attach_function :ib_init, [], DbError
@@ -142,6 +145,7 @@ module PureHailDB
 
   # cursor functions
   attach_function :ib_cursor_open_table, [ :string, :pointer, :pointer ], DbError
+  attach_function :ib_cursor_open_index_using_name, [ :pointer, :string, :pointer ], DbError
   attach_function :ib_cursor_close, [ :pointer ], DbError
   attach_function :ib_cursor_reset, [ :pointer ], DbError
   attach_function :ib_cursor_lock, [ :pointer, LockMode ], DbError
@@ -151,9 +155,15 @@ module PureHailDB
   attach_function :ib_cursor_prev, [ :pointer ], DbError
   attach_function :ib_cursor_first, [ :pointer ], DbError
   attach_function :ib_cursor_last, [ :pointer ], DbError
+  attach_function :ib_cursor_moveto, [ :pointer, :pointer, SearchMode, :pointer ], DbError
+  attach_function :ib_cursor_set_match_mode, [ :pointer, MatchMode ], :void
+  attach_function :ib_cursor_set_cluster_access, [ :pointer ], :void
 
   # tuple functions
   attach_function :ib_clust_read_tuple_create, [ :pointer ], :pointer
+  attach_function :ib_clust_search_tuple_create, [ :pointer ], :pointer
+  attach_function :ib_sec_read_tuple_create, [ :pointer ], :pointer
+  attach_function :ib_sec_search_tuple_create, [ :pointer ], :pointer
   attach_function :ib_tuple_delete, [ :pointer ], :void
   attach_function :ib_tuple_clear, [ :pointer ], :pointer
   attach_function :ib_col_set_value, [ :pointer, :uint64, :pointer , :uint64 ], DbError

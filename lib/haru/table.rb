@@ -7,6 +7,8 @@ module Haru
     attr_accessor :num
     attr_accessor :name
     attr_accessor :type
+    attr_accessor :attrs
+    attr_accessor :size
 
     def initialize(col_name, col_type, col_attrs, col_size, col_num)
       @name = col_name
@@ -16,34 +18,35 @@ module Haru
       @num = col_num
     end
 
-    def insert_data(tuple_ptr, data)
+    def insert_data(tuple_ptr, data, num=nil)
+      num ||= @num
       case @type
       when INT
         data = data.to_i if data.is_a?(String)
         if @size==2 then
-          check_return_code(PureHailDB.ib_tuple_write_u16(tuple_ptr, @num, data))
+          check_return_code(PureHailDB.ib_tuple_write_u16(tuple_ptr, num, data))
         end
         if @size==4 then
-          check_return_code(PureHailDB.ib_tuple_write_u32(tuple_ptr, @num, data))
+          check_return_code(PureHailDB.ib_tuple_write_u32(tuple_ptr, num, data))
         end
         if @size==8 then
-          check_return_code(PureHailDB.ib_tuple_write_u64(tuple_ptr, @num, data))
+          check_return_code(PureHailDB.ib_tuple_write_u64(tuple_ptr, num, data))
         end
 
       when FLOAT
         data = data.to_f if data.is_a?(String)
         check_return_code(PureHailDB.ib_tuple_write_float(tuple_ptr,
-                                                          @num,
+                                                          num,
                                                           data))
       when DOUBLE
         data = data.to_f if data.is_a?(String)
         check_return_code(PureHailDB.ib_tuple_write_double(tuple_ptr,
-                                                           @num,
+                                                           num,
                                                            data))
       when CHAR
         p = FFI::MemoryPointer.from_string(data)
         check_return_code(PureHailDB.ib_col_set_value(tuple_ptr,
-                                                      @num,
+                                                      num,
                                                       p,
                                                       @size))
       when BLOB
@@ -51,7 +54,7 @@ module Haru
       when VARCHAR
         vp = FFI::MemoryPointer.from_string(data)
         check_return_code(PureHailDB.ib_col_set_value(tuple_ptr,
-                                                      @num,
+                                                      num,
                                                       vp,
                                                       data.size))
       end
@@ -101,11 +104,30 @@ module Haru
     attr_accessor :name
     attr_accessor :schema_ptr
     attr_accessor :columns
+    attr_accessor :indexes
+
+    def self.load(tbl_obj)
+      t = Table.new(*tbl_obj.name.split("/"))
+      t.create(tbl_obj.columns.values.sort_by { |c| c.num }.map { |c| [c.name, c.type, c.attrs, c.size ] })
+      if not t.exists()
+        tbl_obj.indexes.each_item { |iname, tcols|
+            case tcols[0]
+              when SECONDARY_INDEX
+                t.add_index(iname, *tcols[1..-1])
+              when CLUSTERED_INDEX
+                t.add_clustered_index(iname, *tcols[1..-1])
+            end
+        }
+      end
+      return t
+    end
+
 
     def initialize(db_name, table_name)
       @name = db_name + "/" + table_name
       @schema_ptr = FFI::MemoryPointer.new :pointer
       @columns = {}
+      @indexes = {}
       @page_size = 0
     end
 
@@ -202,11 +224,13 @@ module Haru
       other_col_names.each do |col|
         check_return_code(PureHailDB.ib_index_schema_add_col(idx_ptr.read_pointer(), col, 0))
       end
+      @indexes[idx_name] = [SECONDARY_INDEX, col_name ] + other_col_names
       return idx_ptr
     end
 
     def add_clustered_index(idx_name, col_name, *other_col_names)
       idx_ptr = add_index(idx_name, col_name, *other_col_names)
+      @indexes[idx_name][0] = CLUSTERED_INDEX
       check_return_code(PureHailDB.ib_index_schema_set_clustered(idx_ptr.read_pointer()))
     end
 
